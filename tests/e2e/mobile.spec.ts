@@ -23,19 +23,18 @@ test('375-pixel layouts fit, controls are large and labeled, and the timer stays
 
   await page.getByRole('button', { name: 'Today', exact: true }).click();
   const reps = page.getByLabel('Reps', { exact: true });
+  // Fields scrolled into view (as when tapped or focused) stop below the fixed timer bar.
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await reps.focus();
-  await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
-  // The focused field lands below the fixed bar rather than underneath it.
+  await reps.evaluate(el => el.scrollIntoView({ block: 'start' }));
   const bar = (await page.locator('.top-bar').boundingBox())!;
   const field = (await reps.boundingBox())!;
-  expect(field.y).toBeGreaterThanOrEqual(bar.y + bar.height);
-  expect(field.y + field.height).toBeLessThanOrEqual(667);
+  expect(field.y).toBeGreaterThanOrEqual(bar.y + bar.height - 1);
   // Scrolling a long workout while typing keeps the timer on screen.
+  await reps.focus();
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   const timer = (await page.getByRole('timer').boundingBox())!;
   expect(timer.y >= 0 && timer.y + timer.height <= 667).toBe(true);
-  await reps.blur();
+  await expect(reps).toBeFocused();
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
 });
 

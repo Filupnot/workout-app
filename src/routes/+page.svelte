@@ -11,7 +11,6 @@
 
   const app = new WorkoutApp();
   let settings = $state(false);
-  let typing = $state(false);
   let waiting = $state<ServiceWorker | null>(null);
   const views = [['today', 'Today'], ['history', 'History'], ['exercises', 'Exercises']] as const;
 
@@ -28,20 +27,12 @@
     const interval = setInterval(() => app.tick(), 250);
     const onVisibility = () => app.visibilityChanged();
     const onOnline = () => void app.refresh();
-    // Hide the bottom navigation while typing so the keyboard never covers form controls.
-    const onFocus = () => { typing = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement; };
-    // Delay the nav's return so a tap that dismisses the keyboard still lands where it was aimed.
-    const onBlur = () => setTimeout(onFocus, 300);
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('online', onOnline);
-    document.addEventListener('focusin', onFocus);
-    document.addEventListener('focusout', onBlur);
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('online', onOnline);
-      document.removeEventListener('focusin', onFocus);
-      document.removeEventListener('focusout', onBlur);
       app.close();
     };
   });
@@ -55,7 +46,7 @@
 {#if app.phase !== 'ready'}
   <Welcome {app} />
 {:else}
-  <div class="app-shell" class:typing>
+  <div class="app-shell">
     <TopBar {app} onSettings={() => (settings = true)} />
     <main class="content" id="content">
       {#if app.error}<div class="banner error" role="alert"><span>{app.error}</span><button class="text-button" onclick={() => (app.error = '')}>Dismiss</button></div>{/if}

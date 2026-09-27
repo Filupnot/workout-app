@@ -222,7 +222,6 @@ dialog::backdrop { background: rgb(0 0 0 / .55); }
 .bottom-nav button.active { color: var(--text); }
 .bottom-nav .nav-icon { font-size: 18px; line-height: 1; }
 .bottom-nav button.active .nav-icon { color: var(--accent); }
-.app-shell.typing .bottom-nav { display: none; }
 
 @media (max-width: 380px) {
   h1 { font-size: 38px; }
