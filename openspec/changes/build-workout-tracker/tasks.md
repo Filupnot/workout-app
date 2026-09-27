@@ -54,7 +54,7 @@
 ## 7. Home Screen and deployment
 
 - [x] 7.1 Add manifest, icons, and versioned static-shell caching without API/auth response caching; verify installation metadata, offline reopening, and updates that preserve drafts/outbox.
-- [ ] 7.2 Configure GitHub Actions Pages publishing and scoped AWS OIDC deployment with private parameters and a generated domain binding; verify workflow permissions and scan final artifacts for secrets and personal fixtures.
+- [x] 7.2 Configure GitHub Actions Pages publishing and scoped AWS OIDC deployment with private parameters and a generated domain binding; verify workflow permissions and scan final artifacts for secrets and personal fixtures.
 - [ ] 7.3 Provision the isolated backend, configure Google callbacks and owner admission privately, and verify owner login succeeds while another synthetic/unlisted identity is denied.
 - [ ] 7.4 Deploy frontend and configured subdomain with HTTPS; verify direct-route reloads, authentication redirects, API CORS, and that existing applications remain reachable.
 - [ ] 7.5 Document releases, restore/rollback, retention, and configuration rotation; verify a rollback rehearsal retains the table and workout records.
