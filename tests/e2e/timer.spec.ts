@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 import { choose, logSet, openPreview } from './helpers';
 
 test.beforeEach(async ({ page }) => {
+  // Time moves only when a test advances it, so slow machines cannot drift the display.
   await page.clock.install({ time: new Date('2026-03-02T18:00:00') });
+  await page.clock.pauseAt(new Date('2026-03-02T18:00:01'));
   // Count soft cues without producing sound.
   await page.addInitScript(() => {
     (window as unknown as { cues: number }).cues = 0;
