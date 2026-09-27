@@ -6,7 +6,7 @@
 - [x] 1.2 Scaffold SvelteKit/TypeScript static delivery with pinned dependencies and check/build scripts; verify type checking and production build succeed.
 - [x] 1.3 Add CI for checks, builds, and secret scanning; verify a synthetic scanner test detects a dummy forbidden fixture without using a real secret.
 - [ ] 1.4 Check private GitHub Pages eligibility, then create the dedicated private GitHub repository and push reviewed, scanned history; verify the remote and visibility, and obtain a concrete hosting/visibility decision if private Pages is unavailable.
-- [ ] 1.5 Document local setup, configuration boundaries, and repository privacy rules with placeholders only; verify a clean checkout can follow the setup instructions.
+- [x] 1.5 Document local setup, configuration boundaries, and repository privacy rules with placeholders only; verify a clean checkout can follow the setup instructions.
 
 ## 2. Domain model and local persistence
 
@@ -65,3 +65,7 @@
 - [ ] 8.2 Exercise a complete weights/rowing/stretch session on a real iPhone in Safari and Home Screen mode, including dark appearance, keyboard use, audio, lock/return overtime, and offline reload; record results and resolve failures before delivery.
 - [ ] 8.3 Verify cloud recovery on another browser after sync, conflict handling, and logout privacy; confirm no duplicate sets and no cross-account access.
 - [ ] 8.4 Review tracked files and outgoing Git history, publish the final reviewed commit, and confirm the deployed version matches it with no deferred enhancements accidentally enabled.
+
+## Implementation checkpoint
+
+Foundation published to a private repository. Local tests, type checking, static build, clean-checkout setup, and automated privacy checks pass. Dependency audit reports no vulnerabilities after pinning a patched transitive cookie release. Task 1.4 remains incomplete: GitHub rejected Pages creation with HTTP 422 because the current account plan does not support Pages for this private repository. Await a choice of public source, upgraded GitHub plan, or revised hosting before proceeding with the blocked workflow. No workout logging, authentication, cloud resources, or production site are implemented yet.
