@@ -41,8 +41,10 @@ The API compares each verified access token's `sub` with this value on every req
 ```sh
 aws cloudformation deploy --region <region> --stack-name <stack>-deploy-access \
   --template-file infra/deploy-access.yaml --capabilities CAPABILITY_IAM \
-  --parameter-overrides GitHubRepository=<owner>/<repo> AppStackName=<stack> GoogleSecretArn=<secret-arn>
+  --parameter-overrides GitHubSubjectPrefix=<sub-claim-prefix> AppStackName=<stack> GoogleSecretArn=<secret-arn>
 ```
+
+`<sub-claim-prefix>` is `sub_claim_prefix` from `gh api repos/<owner>/<repo>/actions/oidc/customization/sub` (for example `repo:<owner>@<owner-id>/<repo>@<repo-id>`). Its numeric IDs keep a renamed or recreated repository from inheriting the trust. The secret must be in the same region as the stack.
 
 Then, in GitHub → Settings → Environments, create `backend` (optionally requiring your approval) and add:
 

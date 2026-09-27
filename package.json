@@ -14,9 +14,10 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "node --import tsx --test tests/*.test.mjs tests/*.test.ts",
     "privacy:check": "node scripts/privacy-check.mjs",
-    "build:backend": "esbuild backend/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/backend/index.mjs",
+    "build:backend": "esbuild backend/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/backend/index.mjs --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
     "test:e2e": "playwright test",
-    "scan:build": "node scripts/scan-artifacts.mjs build"
+    "scan:build": "node scripts/scan-artifacts.mjs build",
+    "test:bundle": "npm run build:backend && node scripts/smoke-backend.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.57.0",

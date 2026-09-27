@@ -4,10 +4,13 @@ Description: >
   (no stored AWS keys) that can only upload artifacts and drive one CloudFormation stack; that
   stack runs under a separate execution role limited to the app's resources.
 Parameters:
-  GitHubRepository:
+  GitHubSubjectPrefix:
     Type: String
-    Description: owner/name of the repository allowed to deploy
-    AllowedPattern: '[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+'
+    Description: >
+      The repository's OIDC subject prefix, from
+      gh api repos/<owner>/<repo>/actions/oidc/customization/sub (sub_claim_prefix),
+      e.g. repo:<owner>@<owner-id>/<repo>@<repo-id>; IDs pin the trust to this exact repository.
+    AllowedPattern: 'repo:[A-Za-z0-9_.@-]+/[A-Za-z0-9_.@-]+'
   AppStackName:
     Type: String
     Default: workout
@@ -90,6 +93,10 @@ Resources:
               - Effect: Allow
                 Action: s3:GetObject
                 Resource: !Sub '${Artifacts.Arn}/*'
+              # The SAM transform expands the template under this role.
+              - Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
   # Assumed by GitHub Actions for this repository's main branch only.
   DeployRole:
     Type: AWS::IAM::Role
@@ -104,7 +111,7 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubRepository}:environment:backend'
+                token.actions.githubusercontent.com:sub: !Sub '${GitHubSubjectPrefix}:environment:backend'
       Policies:
         - PolicyName: deploy-one-stack
           PolicyDocument:
