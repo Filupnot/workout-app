@@ -29,7 +29,7 @@ After an initial online load, the app SHALL support Home Screen installation and
 - **THEN** core logging remains available
 
 ### Requirement: Safe GitHub publication
-The app SHALL be maintained in a dedicated Git repository published to the owner's GitHub, private by default. Tracked content and outgoing history SHALL exclude secrets, personal account identifiers, real workout data, and local state; examples and tests SHALL use synthetic data.
+The app SHALL be maintained in a dedicated Git repository published to the owner's GitHub, public with the owner's explicit approval. Tracked content and outgoing history SHALL exclude secrets, personal account identifiers, real workout data, and local state; examples and tests SHALL use synthetic data.
 
 #### Scenario: Prepublication scan
 - **WHEN** a staged file or outgoing commit contains a credential or personal fixture

@@ -1,0 +1,135 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  GitHub Actions deployment access for the workout backend. GitHub assumes a role through OIDC
+  (no stored AWS keys) that can only upload artifacts and drive one CloudFormation stack; that
+  stack runs under a separate execution role limited to the app's resources.
+Parameters:
+  GitHubRepository:
+    Type: String
+    Description: owner/name of the repository allowed to deploy
+    AllowedPattern: '[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+'
+  AppStackName:
+    Type: String
+    Default: workout
+    AllowedPattern: '[a-z][a-z0-9-]{1,30}'
+  GoogleSecretArn:
+    Type: String
+    Description: Secrets Manager ARN holding the Google client secret
+  CreateOidcProvider:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'true'
+    Description: false when the account already has token.actions.githubusercontent.com
+Conditions:
+  CreateProvider: !Equals [!Ref CreateOidcProvider, 'true']
+Resources:
+  GitHubProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+  Artifacts:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration: [{ ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 } }]
+      PublicAccessBlockConfiguration: { BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true }
+      OwnershipControls: { Rules: [{ ObjectOwnership: BucketOwnerEnforced }] }
+      VersioningConfiguration: { Status: Enabled }
+      LifecycleConfiguration:
+        Rules:
+          - { Id: expire-old-artifacts, Status: Enabled, ExpirationInDays: 90, NoncurrentVersionExpiration: { NoncurrentDays: 30 } }
+  ArtifactsTls:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Artifacts
+      PolicyDocument:
+        Statement:
+          - Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt Artifacts.Arn, !Sub '${Artifacts.Arn}/*']
+            Condition: { Bool: { 'aws:SecureTransport': 'false' } }
+  # Used by CloudFormation itself to create and update the app stack.
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - { Effect: Allow, Principal: { Service: cloudformation.amazonaws.com }, Action: 'sts:AssumeRole' }
+      Policies:
+        - PolicyName: workout-stack-resources
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: ['dynamodb:*']
+                Resource: !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AppStackName}-*'
+              - Effect: Allow
+                Action: ['lambda:*']
+                Resource: !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${AppStackName}-*'
+              - Effect: Allow
+                Action: [iam:CreateRole, iam:DeleteRole, iam:GetRole, iam:PassRole, iam:TagRole, iam:UntagRole, iam:UpdateAssumeRolePolicy,
+                  iam:PutRolePolicy, iam:DeleteRolePolicy, iam:GetRolePolicy, iam:AttachRolePolicy, iam:DetachRolePolicy, iam:ListRolePolicies, iam:ListAttachedRolePolicies]
+                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${AppStackName}-*'
+              - Effect: Allow
+                Action: ['cognito-idp:*']
+                Resource: !Sub 'arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*'
+              - Effect: Allow
+                Action: [cognito-idp:CreateUserPool, cognito-idp:DescribeUserPoolDomain, cognito-idp:CreateUserPoolDomain, cognito-idp:DeleteUserPoolDomain, cognito-idp:UpdateUserPoolDomain]
+                Resource: '*'
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:DeleteLogGroup, logs:PutRetentionPolicy, logs:DeleteRetentionPolicy, logs:TagResource, logs:UntagResource, logs:ListTagsForResource]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AppStackName}-*'
+              - Effect: Allow
+                Action: [logs:DescribeLogGroups]
+                Resource: '*'
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref GoogleSecretArn
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub '${Artifacts.Arn}/*'
+  # Assumed by GitHub Actions for this repository's main branch only.
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If [CreateProvider, !Ref GitHubProvider, !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com']
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubRepository}:environment:backend'
+      Policies:
+        - PolicyName: deploy-one-stack
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject]
+                Resource: !Sub '${Artifacts.Arn}/*'
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt Artifacts.Arn
+              - Effect: Allow
+                Action: [cloudformation:CreateChangeSet, cloudformation:DescribeChangeSet, cloudformation:ExecuteChangeSet, cloudformation:DeleteChangeSet,
+                  cloudformation:DescribeStacks, cloudformation:DescribeStackEvents, cloudformation:GetTemplateSummary, cloudformation:ListChangeSets]
+                Resource: !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AppStackName}/*'
+              - Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
+              - Effect: Allow
+                Action: cloudformation:ValidateTemplate
+                Resource: '*'
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt ExecutionRole.Arn
+                Condition: { StringEquals: { 'iam:PassedToService': cloudformation.amazonaws.com } }
+Outputs:
+  DeployRoleArn: { Value: !GetAtt DeployRole.Arn }
+  ExecutionRoleArn: { Value: !GetAtt ExecutionRole.Arn }
+  ArtifactBucket: { Value: !Ref Artifacts }

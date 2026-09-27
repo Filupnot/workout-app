@@ -1,16 +1,78 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { WorkoutApp } from '$lib/app/app.svelte';
+  import Welcome from '$lib/components/Welcome.svelte';
+  import TopBar from '$lib/components/TopBar.svelte';
+  import TodayView from '$lib/components/TodayView.svelte';
+  import HistoryView from '$lib/components/HistoryView.svelte';
+  import ExercisesView from '$lib/components/ExercisesView.svelte';
+  import SettingsSheet from '$lib/components/SettingsSheet.svelte';
+  import ConflictDialog from '$lib/components/ConflictDialog.svelte';
+
+  const app = new WorkoutApp();
+  let settings = $state(false);
+  let typing = $state(false);
+  let waiting = $state<ServiceWorker | null>(null);
+  const views = [['today', 'Today'], ['history', 'History'], ['exercises', 'Exercises']] as const;
+
+  onMount(() => {
+    void app.start();
+    // A new release installs in the background; switching is the user's choice so an open set is never interrupted.
+    navigator.serviceWorker?.getRegistration().then(registration => {
+      if (!registration) return;
+      const check = () => { if (registration.waiting && navigator.serviceWorker.controller) waiting = registration.waiting; };
+      check();
+      registration.addEventListener('updatefound', () => registration.installing?.addEventListener('statechange', check));
+    });
+    navigator.serviceWorker?.addEventListener('controllerchange', () => { if (waiting) location.reload(); });
+    const interval = setInterval(() => app.tick(), 250);
+    const onVisibility = () => app.visibilityChanged();
+    const onOnline = () => void app.refresh();
+    // Hide the bottom navigation while typing so the keyboard never covers form controls.
+    const onFocus = () => { typing = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement; };
+    // Delay the nav's return so a tap that dismisses the keyboard still lands where it was aimed.
+    const onBlur = () => setTimeout(onFocus, 300);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('online', onOnline);
+    document.addEventListener('focusin', onFocus);
+    document.addEventListener('focusout', onBlur);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('focusin', onFocus);
+      document.removeEventListener('focusout', onBlur);
+      app.close();
+    };
+  });
+</script>
+
 <svelte:head>
   <title>Workout</title>
-  <meta name="description" content="A quiet place for your training." />
+  <meta name="description" content="A quiet place to log your training." />
 </svelte:head>
 
-<main>
-  <header><span class="mark" aria-hidden="true">w.</span><span>WORKOUT</span></header>
-  <section aria-labelledby="welcome">
-    <p class="eyebrow">YOUR TRAINING, AT YOUR PACE</p>
-    <h1 id="welcome">Make every<br />set count.</h1>
-    <p class="intro">A little more intention.<br />A clearer picture of your progress.</p>
-    <div class="notice"><span class="dot" aria-hidden="true"></span> App setup in progress</div>
-    <p class="caption">Workout logging and sign-in are being built.<br />No personal data is collected on this screen.</p>
-  </section>
-  <footer><span>STRENGTH</span><span>ENDURANCE</span><span>RECOVERY</span></footer>
-</main>
+{#if app.phase !== 'ready'}
+  <Welcome {app} />
+{:else}
+  <div class="app-shell" class:typing>
+    <TopBar {app} onSettings={() => (settings = true)} />
+    <main class="content" id="content">
+      {#if app.error}<div class="banner error" role="alert"><span>{app.error}</span><button class="text-button" onclick={() => (app.error = '')}>Dismiss</button></div>{/if}
+      {#if waiting}<div class="banner notice" role="status"><span>A new version is ready. Your entries are saved.</span><button class="text-button" onclick={() => waiting?.postMessage('skip-waiting')}>Update</button></div>{/if}
+      {#if app.notice}<div class="banner notice" role="status"><span>{app.notice}</span><button class="text-button" onclick={() => (app.notice = '')}>Dismiss</button></div>{/if}
+      {#if app.view === 'today'}<TodayView {app} />
+      {:else if app.view === 'history'}<HistoryView {app} />
+      {:else}<ExercisesView {app} />{/if}
+    </main>
+    <nav class="bottom-nav" aria-label="Main">
+      {#each views as [key, label] (key)}
+        <button class:active={app.view === key} aria-current={app.view === key ? 'page' : undefined} onclick={() => { app.view = key; scrollTo({ top: 0 }); }}>
+          <span class="nav-icon" aria-hidden="true">{key === 'today' ? '◷' : key === 'history' ? '↗' : '≡'}</span>{label}
+        </button>
+      {/each}
+    </nav>
+  </div>
+  <SettingsSheet {app} bind:open={settings} />
+  <ConflictDialog {app} />
+{/if}

@@ -1,0 +1,60 @@
+name: Publish site
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit or tag to publish (for rollback); defaults to the triggering commit
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run privacy:check
+      - run: npm test
+      - run: npm run check
+      - name: Build with public identifiers only
+        env:
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL }}
+          PUBLIC_COGNITO_AUTHORITY: ${{ vars.PUBLIC_COGNITO_AUTHORITY }}
+          PUBLIC_COGNITO_CLIENT_ID: ${{ vars.PUBLIC_COGNITO_CLIENT_ID }}
+          PUBLIC_COGNITO_DOMAIN: ${{ vars.PUBLIC_COGNITO_DOMAIN }}
+          BASE_PATH: ${{ vars.BASE_PATH }}
+          APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+        run: |
+          # The device-only preview is for local tests; deployments must never enable it.
+          if [ -n "${PUBLIC_LOCAL_PREVIEW:-}" ]; then echo "PUBLIC_LOCAL_PREVIEW must be unset" >&2; exit 1; fi
+          npm run build
+          if [ -n "$APP_DOMAIN" ]; then printf '%s\n' "$APP_DOMAIN" > build/CNAME; fi
+      - run: node scripts/scan-artifacts.mjs build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

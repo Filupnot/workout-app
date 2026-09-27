@@ -67,7 +67,7 @@ For rowing, accept any two of seconds, meters, and seconds/500 m; derive the thi
 
 ### 7. GitHub, privacy, and deployment
 
-Initialize a dedicated Git repository during implementation and publish to the owner's authenticated GitHub account, private by default. Check Pages availability for that account/repository before deployment; never make source public automatically to bypass a plan restriction. If private Pages is unavailable, present the concrete visibility/hosting choice to the owner before changing it. Use a privacy-preserving GitHub noreply commit identity. Include only sanitized examples and synthetic fixtures. Ignore environment files, credentials, local databases, deployment output, dependencies, build artifacts, and personal editor/agent state. Scan staged files and full outgoing history before the first push; CI scans later commits.
+Initialize a dedicated Git repository during implementation and publish to the owner's authenticated GitHub account, public with the owner's explicit approval after the private Pages eligibility check failed. Keep personal data and secrets outside Git regardless of visibility. Use a privacy-preserving GitHub noreply commit identity. Include only sanitized examples and synthetic fixtures. Ignore environment files, credentials, local databases, deployment output, dependencies, build artifacts, and personal editor/agent state. Scan staged files and full outgoing history before the first push; CI scans later commits.
 
 Use AWS SAM/CloudFormation for dedicated table, Lambda, role, Cognito resources, and external parameter references. Store deployment parameters and owner admission outside Git; resolve domain configuration and any generated CNAME at deployment time. Public runtime configuration necessarily exposes client IDs and API URLs; treat them as identifiers, never authorization. Keep real domain/account values out of committed examples. GitHub's owner identity itself is necessarily visible to authorized repository viewers; do not add extra personal profile data.
 
@@ -91,4 +91,4 @@ No existing data migration is required. Implement locally with synthetic data, p
 ## Open Questions
 
 - Final app display name and subdomain can be supplied at deployment without changing architecture.
-- Private GitHub Pages eligibility will be checked before publication/deployment; any visibility change requires the owner's decision.
+- Repository visibility is resolved: public source and GitHub Pages, explicitly selected by the owner.

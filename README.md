@@ -1,6 +1,12 @@
 # Workout
 
-An iPhone-first workout journal for strength, rowing, and recovery. Implementation is in progress; the current screen is a static foundation, not a functioning tracker. The approved plan lives in `openspec/changes/build-workout-tracker/`.
+An iPhone-first workout journal for strength, rowing, and recovery: tap once when a set ends to start rest, log the details while you recover, and see what you did last time. Data is saved on the device first and synced to a private backend. The plan lives in `openspec/changes/build-workout-tracker/`.
+
+- [Logging and the rest timer](docs/using.md)
+- [Saving and sync states](docs/sync.md)
+- [History metrics](docs/metrics.md)
+- [Backend setup, API, and operations](docs/backend.md)
+- [Data model and local storage](docs/data.md)
 
 ## Local development
 
@@ -11,16 +17,17 @@ npm ci
 npm run dev -- --host 127.0.0.1
 ```
 
-No credentials are required to run the current scaffold. Do not enter real workout data into development fixtures.
+No credentials are needed locally: the dev server offers **Open local preview**, a device-only mode that never syncs. Don't put real workout data in fixtures.
 
 ```sh
-npm test
+npm test          # unit and API tests
+npm run test:e2e  # iPhone-sized WebKit and Chromium browser tests
 npm run check
 npm run build
 npm run preview -- --host 127.0.0.1
 ```
 
-Static output is written to `build/`. Routes use trailing slashes for static hosting. Set `BASE_PATH` for a repository URL; leave it empty for a custom domain. Deployment is not enabled yet.
+Static output is written to `build/`. Routes use trailing slashes for static hosting. Set `BASE_PATH` for a repository URL, and leave it empty for a custom domain. Deployment runs through GitHub Actions; see [docs/backend.md](docs/backend.md).
 
 ## Configuration and privacy
 
@@ -35,4 +42,4 @@ npm run privacy:check
 
 The privacy checker examines staged blobs and reachable Git history, reporting paths and categories without printing detected values. It catches common credential formats, personal emails, local paths, and forbidden files. It is a guardrail, not proof that arbitrary text is free of personal information; manually review every publication. CI runs the same checks with full history.
 
-The repository defaults to private. GitHub Pages eligibility must be checked before enabling deployment; repository visibility must never be changed automatically to work around an account limitation.
+The owner explicitly selected public source and GitHub Pages. Workout records, credentials, and account admission remain private and outside Git.

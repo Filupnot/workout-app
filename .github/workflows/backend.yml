@@ -1,0 +1,45 @@
+name: Deploy backend
+# Manual only: backend releases are deliberate. Pass an older ref to roll back code;
+# the table and user pool are retained by the stack either way.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit or tag to deploy
+        required: false
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: backend
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          mask-aws-account-id: true
+      - name: Deploy stack
+        env:
+          STACK_NAME: ${{ vars.STACK_NAME }}
+          ARTIFACT_BUCKET: ${{ secrets.ARTIFACT_BUCKET }}
+          EXECUTION_ROLE_ARN: ${{ secrets.EXECUTION_ROLE_ARN }}
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          GOOGLE_SECRET_ARN: ${{ secrets.GOOGLE_SECRET_ARN }}
+          OWNER_PARAMETER: ${{ vars.OWNER_PARAMETER }}
+          AUTH_DOMAIN_PREFIX: ${{ vars.AUTH_DOMAIN_PREFIX }}
+        run: ./scripts/deploy-backend.sh
