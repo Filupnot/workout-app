@@ -8,9 +8,11 @@
   import ExercisesView from '$lib/components/ExercisesView.svelte';
   import SettingsSheet from '$lib/components/SettingsSheet.svelte';
   import ConflictDialog from '$lib/components/ConflictDialog.svelte';
+  import HelpSheet from '$lib/components/HelpSheet.svelte';
 
   const app = new WorkoutApp();
   let settings = $state(false);
+  let help = $state(false);
   let waiting = $state<ServiceWorker | null>(null);
   const views = [['today', 'Today'], ['history', 'History'], ['exercises', 'Exercises']] as const;
 
@@ -47,10 +49,10 @@
   <Welcome {app} />
 {:else}
   <div class="app-shell">
-    <TopBar {app} onSettings={() => (settings = true)} />
+    <TopBar {app} onSettings={() => (settings = true)} onHelp={() => (help = true)} />
     <main class="content" id="content">
       {#if app.error}<div class="banner error" role="alert"><span>{app.error}</span><button class="text-button" onclick={() => (app.error = '')}>Dismiss</button></div>{/if}
-      {#if waiting}<div class="banner notice" role="status"><span>A new version is ready. Your entries are saved.</span><button class="text-button" onclick={() => waiting?.postMessage('skip-waiting')}>Update</button></div>{/if}
+      {#if waiting}<div class="banner notice" role="status"><span>Update available</span><button class="text-button" onclick={() => waiting?.postMessage('skip-waiting')}>Update</button></div>{/if}
       {#if app.notice}<div class="banner notice" role="status"><span>{app.notice}</span><button class="text-button" onclick={() => (app.notice = '')}>Dismiss</button></div>{/if}
       {#if app.view === 'today'}<TodayView {app} />
       {:else if app.view === 'history'}<HistoryView {app} />
@@ -65,5 +67,6 @@
     </nav>
   </div>
   <SettingsSheet {app} bind:open={settings} />
+  <HelpSheet bind:open={help} />
   <ConflictDialog {app} />
 {/if}

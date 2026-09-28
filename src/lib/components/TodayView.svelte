@@ -8,20 +8,23 @@
   import RowingForm from './RowingForm.svelte';
   let { app }: { app: WorkoutApp } = $props();
   let rowing = $state(false);
+  function remove(e: (typeof app.currentEntries)[number]) {
+    const name = e.kind === 'strength' ? e.exerciseName : 'Rowing';
+    const count = e.kind === 'strength' ? sets(app.records, e.id).length : 0;
+    if (confirm(`Remove ${name}${count ? ` and its ${count} set${count === 1 ? '' : 's'}` : ''} from this workout?`)) void app.removeEntry(e);
+  }
+  function discard() {
+    if (app.current && confirm('Discard this workout? Its exercises, sets, and notes will be deleted.')) void app.deleteWorkout(app.current);
+  }
   const minutes = $derived(app.current ? Math.max(0, Math.floor((app.now - Date.parse(app.current.startedAt)) / 60000)) : 0);
 </script>
 
-<div class="page-heading">
-  <div><p class="eyebrow">One set at a time</p><h1>Today<span class="accent">.</span></h1></div>
-  {#if app.current}<span class="badge">In progress</span>{/if}
-</div>
+<h1>Today<span class="accent">.</span></h1>
 
 {#if !app.current}
-  <section class="card empty">
-    <h2>Show up. Start anywhere.</h2>
-    <p>Weights, a row, a proper stretch. Build the session as you go.</p>
+  <section class="empty">
     <button class="primary full" onclick={() => app.startWorkout()} disabled={app.busy}>Start a workout</button>
-    <p class="subtle center">Already finished a set? Tap <strong>Start rest</strong> above.</p>
+    <p class="subtle center">Or tap Start rest after your first set.</p>
   </section>
 {:else}
   <div class="stats" role="group" aria-label="Session summary">
@@ -41,21 +44,21 @@
 
   {#if app.currentEntries.length}
     <section class="timeline" aria-label="This session, in order">
-      <p class="eyebrow">This session, in order</p>
       {#each app.currentEntries as e, i (e.id)}
-        {#if e.kind === 'strength'}
-          <button class="timeline-item" class:selected={e.id === app.draft.selected} onclick={() => app.selectEntry(e)}>
-            <span class="timeline-number">{String(i + 1).padStart(2, '0')}</span>
-            <span>{e.exerciseName}<small>{sets(app.records, e.id).length} sets{e.details.angle !== undefined ? ` · ${e.details.angle}°` : ''}</small></span>
-            <span aria-hidden="true">›</span>
-          </button>
-        {:else}
-          <div class="timeline-item static">
-            <span class="timeline-number">{String(i + 1).padStart(2, '0')}</span>
-            <span>Rowing<small>{Math.round(e.meters)} m · {formatTime(e.seconds)} · {formatTime(500 * e.seconds / e.meters)} /500 m</small></span>
-            <span></span>
-          </div>
-        {/if}
+        <div class="timeline-row">
+          {#if e.kind === 'strength'}
+            <button class="timeline-item" class:selected={e.id === app.draft.selected} onclick={() => app.selectEntry(e)}>
+              <span class="timeline-number">{String(i + 1).padStart(2, '0')}</span>
+              <span>{e.exerciseName}<small>{sets(app.records, e.id).length} {sets(app.records, e.id).length === 1 ? 'set' : 'sets'}{e.details.angle !== undefined ? ` · ${e.details.angle}°` : ''}</small></span>
+            </button>
+          {:else}
+            <div class="timeline-item static">
+              <span class="timeline-number">{String(i + 1).padStart(2, '0')}</span>
+              <span>Rowing<small>{Math.round(e.meters)} m · {formatTime(e.seconds)} · {formatTime(500 * e.seconds / e.meters)} /500 m</small></span>
+            </div>
+          {/if}
+          <button class="remove" aria-label={`Remove ${e.kind === 'strength' ? e.exerciseName : 'rowing'} (${i + 1})`} onclick={() => remove(e)} disabled={app.busy}>×</button>
+        </div>
       {/each}
     </section>
   {/if}
@@ -63,12 +66,13 @@
   <section class="card recovery">
     <label class="check">
       <input type="checkbox" checked={app.current.stretched} onchange={e => app.setStretched(e.currentTarget.checked)} />
-      <span>Stretched<small>A little care for tomorrow.</small></span>
+      <span>Stretched</span>
     </label>
     <label>Session note
-      <textarea placeholder="Anything worth remembering?" maxlength="2000" value={app.draft.sessionNote}
+      <textarea placeholder="Optional" maxlength="2000" value={app.draft.sessionNote}
         oninput={e => app.setDraft({ sessionNote: e.currentTarget.value })} onblur={() => app.saveSessionNote()}></textarea>
     </label>
   </section>
   <button class="finish" onclick={() => app.finish()} disabled={app.busy}>Finish workout</button>
+  <button class="text-button danger" onclick={discard} disabled={app.busy}>Discard workout</button>
 {/if}

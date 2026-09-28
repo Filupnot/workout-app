@@ -35,7 +35,7 @@ test('deadline-based rest keeps running through logging, navigation, reload, and
   await page.getByRole('button', { name: 'Remove 15 seconds' }).click();
   await page.clock.runFor(85000);
   await expect(timer).toHaveText('-0:25');
-  await expect(page.getByText('Overtime')).toBeVisible();
+  await expect(page.getByText('Overtime', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Restart' }).click();
   await expect(timer).toHaveText('1:30');
   await page.getByRole('button', { name: 'Skip' }).click();
@@ -60,7 +60,7 @@ test('the optional cue plays once in the foreground and never catches up after h
   // Silent preference: expiry changes only the display.
   await page.getByRole('button', { name: 'Start rest' }).click();
   await page.clock.runFor(32000);
-  await expect(page.getByText('Overtime')).toBeVisible();
+  await expect(page.getByText('Overtime', { exact: true })).toBeVisible();
   expect(await cues(page)).toBe(0);
 
   await page.getByRole('button', { name: 'Settings' }).click();

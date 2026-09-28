@@ -24,21 +24,21 @@
     </label>
     <label class="check">
       <input type="checkbox" checked={app.profile.sound} onchange={e => app.updateProfile({ sound: e.currentTarget.checked })} />
-      <span>Soft sound when rest ends<small>Plays once, only while Workout is open on screen. No notifications. The ring/silent switch can mute it.</small></span>
+      <span>Soft sound when rest ends</span>
     </label>
     {#if app.profile.sound}<button class="secondary" onclick={() => app.testSound()}>Play test sound</button>{/if}
     <div class="sync-panel">
       <h3>Sync</h3>
-      {#if app.preview}<p class="subtle">Preview data stays on this device only.</p>
+      {#if app.preview}<p class="subtle">Preview (not synced)</p>
       {:else}
-        <p class="subtle">{app.pendingCount ? `${app.pendingCount} change${app.pendingCount === 1 ? '' : 's'} saved on this device, waiting to sync.` : 'Everything on this device has synced.'}</p>
+        <p class="subtle">{app.pendingCount ? `${app.pendingCount} change${app.pendingCount === 1 ? '' : 's'} waiting` : 'All synced'}</p>
         <button class="secondary" onclick={() => app.syncNow()} disabled={app.busy}>{app.status === 'signin' ? 'Sign in again' : app.status === 'conflict' || app.status === 'failed' ? 'Review changes' : 'Sync now'}</button>
       {/if}
     </div>
     <button class="secondary danger" onclick={() => (leaving = true)}>Sign out</button>
   {:else}
     <h2>Sign out of this device?</h2>
-    <p>Signing out removes your workouts from this device. They stay in your account once synced.</p>
+    <p class="subtle">Removes workout data from this device.</p>
     {#if app.pendingCount}<p class="warning">{app.pendingCount} change{app.pendingCount === 1 ? ' has' : 's have'} not synced yet.</p>{/if}
     {#if app.error}<p class="error-text" role="alert">{app.error}</p>{/if}
     <button class="primary full" onclick={() => app.signOut(false)} disabled={app.busy}>{app.pendingCount ? 'Sync, then sign out' : 'Sign out'}</button>

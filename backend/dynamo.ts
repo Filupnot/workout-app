@@ -33,6 +33,12 @@ export class DynamoRepository implements Repository {
     const row = await this.get(owner, aggregate);
     return { records: row ? [{ key: row.sk as string, value: row.value as WorkoutRecord, revision: row.revision as number }] : [] };
   }
+  private async children(owner: string, prefix: string) {
+    const rows: RecordRow[] = [];
+    let cursor: string | undefined;
+    do { const page = await this.query(owner, prefix, cursor); rows.push(...page.records); cursor = page.cursor; } while (cursor);
+    return rows;
+  }
   private async get(owner: string, key: string) {
     return (await this.client.send(new GetCommand({ TableName: this.table, Key: { pk: this.pk(owner), sk: key }, ConsistentRead: true }))).Item;
   }
@@ -44,6 +50,11 @@ export class DynamoRepository implements Repository {
     const parentChange = m.changes.find(c => c.key === m.aggregate);
     const parent = parentChange?.value || current?.value as WorkoutRecord | undefined;
     if (!parent) throw new ApiError(400, 'Create the parent record first.');
+    // A deleted workout accepts only its tombstone and further removals, and is never restored.
+    const deleted = (current?.value as WorkoutRecord | undefined)?.kind === 'workout' && (current!.value as { status: string }).status === 'deleted';
+    if ((deleted && (parent.kind !== 'workout' || parent.status !== 'deleted'))
+      || (parent.kind === 'workout' && parent.status === 'deleted' && m.changes.some(c => c.value && c.key !== m.aggregate)))
+      throw new ApiError(400, 'This workout was deleted.');
     for (const c of m.changes) {
       if (c.value?.kind === 'set') {
         const entryKey = `WORKOUT#${c.value.workoutId}#ENTRY#${c.value.entryId}`;
@@ -51,8 +62,15 @@ export class DynamoRepository implements Repository {
         const entry = local ? local.value : (await this.get(owner, entryKey))?.value;
         if (entry?.kind !== 'strength') throw new ApiError(400, 'A set needs a strength entry.');
       }
-      // Entries are archived through library records; deleting an entry could orphan sets.
-      if (c.value === null && !c.key.includes('#SET#')) throw new ApiError(400, 'Only individual sets can be removed.');
+    }
+    // An entry can be removed only once none of its sets remain, so no set is ever orphaned.
+    const removedEntries = m.changes.filter(c => c.value === null && c.key.includes('#ENTRY#')).map(c => c.key.split('#ENTRY#')[1]);
+    if (removedEntries.length) {
+      const removed = new Set(m.changes.filter(c => c.value === null).map(c => c.key));
+      const stored = await this.children(owner, m.aggregate.replace(/META$/, 'SET#'));
+      const remaining = [...stored.filter(s => !removed.has(s.key) && !m.changes.some(c => c.key === s.key)).map(s => s.value),
+        ...m.changes.flatMap(c => c.value?.kind === 'set' ? [c.value] : [])];
+      if (remaining.some(s => s.kind === 'set' && removedEntries.includes(s.entryId))) throw new ApiError(400, 'Remove the sets before their exercise.');
     }
     const revision = m.baseRevision + 1;
     const item = (key: string, value: WorkoutRecord) => ({ pk: this.pk(owner), sk: key, value, revision,

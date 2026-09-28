@@ -23,7 +23,7 @@
         <p class="prior-sets">{p.entry.details.angle !== undefined ? `${p.entry.details.angle}° · ` : ''}{p.sets.map(s => `${s.weight} ${s.unit} × ${s.reps}`).join(' · ')}</p>
       {/each}
     {:else}
-      <p class="subtle">First time logging this one. No earlier sets to compare.</p>
+      <p class="subtle">First time</p>
     {/if}
   </div>
 
@@ -60,13 +60,10 @@
 
     <details class="nuance" open={!!app.draft.entryNote || app.draft.angle !== (entry.details.angle?.toString() ?? '')}>
       <summary>Angle and notes</summary>
-      <label>Angle in degrees (optional)
+      <label>Angle (°)
         <input inputmode="decimal" placeholder="e.g. 30" value={app.draft.angle} oninput={e => app.setDraft({ angle: e.currentTarget.value })} />
       </label>
-      {#if app.activeSets.length && app.draft.angle !== (entry.details.angle?.toString() ?? '') && !editing}
-        <p class="subtle">A new angle starts a separate entry so each variant keeps its own sets.</p>
-      {/if}
-      <label>How did it feel?
+      <label>Note
         <textarea maxlength="2000" placeholder="Optional" value={app.draft.entryNote}
           oninput={e => app.setDraft({ entryNote: e.currentTarget.value })} onblur={() => app.saveEntryNote()}></textarea>
       </label>
@@ -74,6 +71,6 @@
 
     <button type="submit" class="primary full" disabled={app.busy}>{editing ? 'Save correction' : 'Log set'}</button>
     {#if editing}<button type="button" class="text-button full" onclick={() => app.cancelEdit()}>Cancel correction</button>
-    {:else}<p class="subtle center">Logging never touches the rest timer.</p>{/if}
+    {/if}
   </form>
 </section>

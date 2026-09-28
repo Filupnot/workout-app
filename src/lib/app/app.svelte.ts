@@ -1,8 +1,8 @@
 import { ADMITTED_KEY, createSession, type Session } from '$lib/auth/session';
 import { apiUrl, authConfig, localPreviewAllowed } from '$lib/config';
 import { entries, finishedWorkouts, lastPerformed, sets, workouts } from '$lib/domain/history';
-import { aggregateKey, defaultProfile, newWorkout, recordKey, seedExercises, type Exercise, type Profile, type Strength, type WorkoutRecord } from '$lib/domain/model';
-import { addEntry, confirmSet, emptyDraft, finishWorkout, prefill, rowingEntry, type Draft } from '$lib/domain/session';
+import { aggregateKey, defaultProfile, newWorkout, recordKey, seedExercises, type Exercise, type Profile, type Rowing, type Strength, type Workout, type WorkoutRecord } from '$lib/domain/model';
+import { addEntry, confirmSet, emptyDraft, entryRemoval, finishWorkout, prefill, rowingEntry, workoutDeletion, type Batch, type Draft } from '$lib/domain/session';
 import { adjust, remaining, startRest, tick, visibility, type RestTimer } from '$lib/domain/timer';
 import { LocalStore, openWorkoutDB, type StoredRecord } from '$lib/storage/database';
 import { createApi, fetchAggregate, HttpError, idleStatus, pullLibrary, pullWorkouts, SyncEngine, type Api, type SyncStatus } from '$lib/storage/sync';
@@ -303,8 +303,26 @@ export class WorkoutApp {
       await this.save([finishWorkout(this.current, this.draft.sessionNote)]);
       await this.setTimer(null);
       this.setDraft({ ...emptyDraft(this.profile.unit) });
-      this.notice = 'Workout saved. Nice work.';
-      setTimeout(() => { if (this.notice === 'Workout saved. Nice work.') this.notice = ''; }, 5000);
+      this.notice = 'Workout saved';
+      setTimeout(() => { if (this.notice === 'Workout saved') this.notice = ''; }, 5000);
+    });
+  }
+
+  // ----- Correcting mistakes -----
+
+  private async saveBatches(batches: Batch[]) { for (const b of batches) await this.save(b.values, b.removed); }
+  removeEntry(entry: Strength | Rowing) {
+    return this.act(async () => {
+      if (!this.current || entry.workoutId !== this.current.id) return;
+      await this.saveBatches(entryRemoval(this.records, this.current, entry));
+      if (this.draft.selected === entry.id) this.setDraft({ selected: '', weight: '', reps: '', angle: '', entryNote: '', editSetId: '' });
+    });
+  }
+  deleteWorkout(workout: Workout) {
+    return this.act(async () => {
+      const active = workout.id === this.current?.id;
+      await this.saveBatches(workoutDeletion(this.records, workout));
+      if (active) { await this.setTimer(null); this.setDraft({ ...emptyDraft(this.profile.unit) }); }
     });
   }
 

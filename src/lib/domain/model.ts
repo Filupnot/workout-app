@@ -20,7 +20,8 @@ export const exerciseSchema = z.object({
 export const workoutSchema = z.object({
   ...base, kind: z.literal('workout'), id: idSchema, startedAt: timestamp,
   endedAt: timestamp.optional(), localDate: z.iso.date(), timezone: z.string().min(1).max(100),
-  status: z.enum(['active', 'finished']), notes, stretched: z.boolean()
+  // 'deleted' is a content-free tombstone that tells other devices the workout was removed.
+  status: z.enum(['active', 'finished', 'deleted']), notes, stretched: z.boolean()
 }).strict().refine(w => w.status !== 'finished' || !!w.endedAt, 'Finished workouts need an end time')
   .refine(w => !w.endedAt || w.endedAt >= w.startedAt, 'End precedes start');
 const entryBase = { ...base, id: idSchema, workoutId: idSchema, position, notes };

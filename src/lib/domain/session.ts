@@ -1,6 +1,6 @@
 import { deriveRow, parseTime } from './rowing';
 import { entries, sets } from './history';
-import { snapshot, strengthSchema, type Exercise, type LiftSet, type Rowing, type Strength, type Workout, type WorkoutRecord } from './model';
+import { recordKey, snapshot, strengthSchema, type Exercise, type LiftSet, type Rowing, type Strength, type Workout, type WorkoutRecord } from './model';
 
 export type Unit = 'lb' | 'kg';
 /** Unsaved form state, persisted locally so a reload restores it. */
@@ -74,6 +74,27 @@ export function rowingEntry(records: WorkoutRecord[], workout: Workout, draft: P
 
 export function finishWorkout(workout: Workout, notes: string, now = new Date()): Workout {
   return { ...workout, notes: notes.slice(0, 2000), status: 'finished', endedAt: now.toISOString() };
+}
+
+/** One locally atomic save: the workout record plus up to 19 removals, within the 20-change mutation limit. */
+export type Batch = { values: WorkoutRecord[]; removed: string[] };
+const REMOVALS_PER_BATCH = 19;
+function batches(parent: Workout, keys: string[]): Batch[] {
+  const out: Batch[] = [];
+  for (let i = 0; i < keys.length; i += REMOVALS_PER_BATCH) out.push({ values: [parent], removed: keys.slice(i, i + REMOVALS_PER_BATCH) });
+  return out.length ? out : [{ values: [parent], removed: [] }];
+}
+/** Removes an entry and its sets. Sets go first, so no batch leaves a set without its entry. */
+export function entryRemoval(records: WorkoutRecord[], workout: Workout, entry: Strength | Rowing): Batch[] {
+  return batches(workout, [...sets(records, entry.id).map(recordKey), recordKey(entry)]);
+}
+/** Replaces a workout with a tombstone and erases all of its entries and sets. */
+export function workoutDeletion(records: WorkoutRecord[], workout: Workout): Batch[] {
+  const { endedAt: _endedAt, ...rest } = workout;
+  const tombstone: Workout = { ...rest, status: 'deleted', notes: '', stretched: false };
+  const children = entries(records, workout.id);
+  const keys = [...children.flatMap(e => sets(records, e.id).map(recordKey)), ...children.map(recordKey)];
+  return batches(tombstone, keys);
 }
 
 export const confirmedSetCount = (records: WorkoutRecord[], workoutId: string) =>

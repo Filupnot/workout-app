@@ -4,11 +4,11 @@ import { choose, logSet, openPreview } from './helpers';
 test('a varied session keeps order, counts only confirmed sets, and survives reload', async ({ page }) => {
   await openPreview(page);
   await page.getByRole('button', { name: 'Start rest' }).click();
-  await expect(page.getByRole('heading', { name: 'Pick your first exercise' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose exercise' })).toBeVisible();
   await expect(page.getByRole('timer')).toHaveText(/^1:(29|30)$/);
 
   await choose(page, 'Bench press');
-  await expect(page.getByText('First time logging this one.')).toBeVisible();
+  await expect(page.locator('.last-time')).toHaveText('First time');
   await expect(page.getByRole('listitem', { name: 'Suggested set, not logged' })).toHaveCount(2);
   await logSet(page, '135', '10');
   await expect(page.getByLabel(/^Weight in/)).toHaveValue('135');
@@ -35,8 +35,8 @@ test('a varied session keeps order, counts only confirmed sets, and survives rel
   await choose(page, 'Incline bench press');
   await logSet(page, '95', '10');
   await page.getByText('Angle and notes').click();
-  await page.getByLabel('Angle in degrees (optional)').fill('45');
-  await page.getByLabel('How did it feel?').fill('Shoulder felt fine');
+  await page.getByLabel('Angle (°)').fill('45');
+  await page.getByLabel('Note', { exact: true }).fill('Shoulder felt fine');
   await logSet(page, '85', '10');
 
   await page.getByRole('button', { name: '+ Rowing' }).click();
@@ -46,7 +46,7 @@ test('a varied session keeps order, counts only confirmed sets, and survives rel
   await page.getByRole('button', { name: 'Save row' }).click();
 
   const timeline = page.getByRole('region', { name: 'This session, in order' });
-  await expect(timeline.locator('.timeline-item')).toHaveText([/Bench press3 sets/, /Incline bench press1 sets · 30°/, /Incline bench press1 sets · 45°/, /Rowing2000 m · 8:00 · 2:00/]);
+  await expect(timeline.locator('.timeline-item')).toHaveText([/Bench press3 sets/, /Incline bench press1 set · 30°/, /Incline bench press1 set · 45°/, /Rowing2000 m · 8:00 · 2:00/]);
   await expect(page.getByRole('group', { name: 'Session summary' })).toContainText('5Sets');
 
   await page.getByLabel('Stretched').check();
@@ -57,17 +57,17 @@ test('a varied session keeps order, counts only confirmed sets, and survives rel
   await expect(page.getByLabel('Stretched')).toBeChecked();
 
   await page.getByRole('button', { name: 'Finish workout' }).click();
-  await expect(page.getByText('Workout saved. Nice work.')).toBeVisible();
+  await expect(page.getByText('Workout saved')).toBeVisible();
   await expect(page.getByRole('timer')).toHaveText('1:30');
 
   await page.getByRole('button', { name: 'History', exact: true }).click();
-  await expect(page.getByText(/1 finished workout since/)).toBeVisible();
+  await expect(page.getByText('1 total')).toBeVisible();
   await page.locator('.session-row').first().click();
   const detail = page.locator('.session-detail');
   await expect(detail.getByRole('heading')).toHaveText(['Bench press', 'Incline bench press · 30°', 'Incline bench press · 45°', 'Rowing']);
   await expect(detail).toContainText('Set 2: 145 lb × 9');
   await expect(detail).toContainText('Shoulder felt fine');
-  await expect(detail).toContainText('Stretched afterwards.');
+  await expect(detail).toContainText('Stretched');
   await expect(detail).toContainText('Solid day');
 });
 

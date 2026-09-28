@@ -10,7 +10,7 @@ export function describe(records: WorkoutRecord[]): string[] {
     if (r.kind === 'exercise') lines.push(`${r.name} (${r.category})${r.details.angle !== undefined ? ` at ${r.details.angle}°` : ''}${r.archived ? ', archived' : ''}`);
   }
   for (const w of workouts(records)) {
-    lines.push(`${w.localDate}, ${w.status === 'finished' ? 'finished' : 'in progress'}${w.stretched ? ', stretched' : ''}`);
+    lines.push(`${w.localDate}, ${w.status === 'deleted' ? 'deleted' : w.status === 'finished' ? 'finished' : 'in progress'}${w.stretched ? ', stretched' : ''}`);
     for (const e of entries(records, w.id)) {
       if (e.kind === 'rowing') lines.push(`Rowing: ${Math.round(e.meters)} m in ${formatTime(e.seconds)}`);
       else {

@@ -17,6 +17,14 @@ Three rows are shown as a guide. Dashed rows are suggestions only and never coun
 
 Unsaved entries are kept across reloads, and an unfinished workout reopens where you left it.
 
+## Removing mistakes
+
+- **An exercise in today's workout:** tap **×** beside it in the session list. Its sets are removed with it; the exercise stays in your library.
+- **Today's workout:** **Discard workout** deletes it and stops the rest timer.
+- **A past workout:** open it in History and tap **Delete workout**.
+
+Each asks for confirmation first, and nothing can be undone afterwards. Deleted workouts disappear from History, last time, and every chart on all your devices. Exercises in finished workouts can't be removed individually; delete the whole workout instead. Library exercises are archived rather than deleted, so past workouts keep their names.
+
 ## Rest timer
 
 - **Restart** replaces the current countdown. **Skip** clears it. **−15** and **+15** adjust the countdown you are in. The default duration (90 seconds) is in Settings.

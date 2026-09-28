@@ -2,7 +2,7 @@
   import type { WorkoutApp } from '$lib/app/app.svelte';
   import { formatTime } from '$lib/domain/rowing';
   import type { SyncStatus } from '$lib/storage/sync';
-  let { app, onSettings }: { app: WorkoutApp; onSettings: () => void } = $props();
+  let { app, onSettings, onHelp }: { app: WorkoutApp; onSettings: () => void; onHelp: () => void } = $props();
 
   const labels: Record<SyncStatus, string> = {
     local: 'Saved on device', syncing: 'Syncing…', synced: 'Synced', signin: 'Sign in to sync',
@@ -30,11 +30,12 @@
 
 <header class="top-bar" bind:offsetHeight={height} style:transform={offset ? `translateY(${offset}px)` : undefined}>
   <div class="top-line">
-    <span class="brand"><span class="brand-mark" aria-hidden="true">w.</span><span>WORKOUT</span></span>
+    <span class="brand"><span class="brand-mark" aria-hidden="true">w.</span><span class="sr-only">Workout</span></span>
     <button class="sync-chip" data-status={app.preview ? 'local' : app.status} onclick={() => app.syncNow()} disabled={app.preview}
       aria-label={`${label}${app.pendingCount ? `, ${app.pendingCount} change${app.pendingCount === 1 ? '' : 's'} waiting` : ''}`}>
       <i aria-hidden="true"></i>{label}
     </button>
+    <button class="icon-button info" aria-label="Help" onclick={onHelp}><span aria-hidden="true">ⓘ</span></button>
     <button class="icon-button" aria-label="Settings" onclick={onSettings}><span aria-hidden="true">☰</span></button>
   </div>
   <section class="rest" class:running={app.timer !== null} class:overtime aria-label="Rest timer">

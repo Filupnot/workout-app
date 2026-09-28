@@ -195,3 +195,61 @@ test('a server-rejected change is isolated as "failed" and recoverable with the 
   assert.equal(phone.states.at(-1), 'synced');
   assert.equal((await phone.store.records()).some(r => r.key.includes(rowing.id)), false);
 });
+
+test('deletions sync across devices, erase cloud content, survive offline, and are never silently undone', async () => {
+  const { entryRemoval, workoutDeletion } = await import('../src/lib/domain/session');
+  const cloud = server();
+  let online = false;
+  const store = new LocalStore(await openWorkoutDB(crypto.randomUUID()), 'synthetic-a');
+  const api = createApi('https://api.example.com', async () => 'token-a', cloud.request('token-a'));
+  const states: SyncStatus[] = [];
+  const phone = { store, api, states, engine: new SyncEngine(store, m => api('/mutations', m), s => states.push(s), () => online, async () => {}, () => 0 as never) };
+  const laptop = await device('synthetic-a', cloud.request('token-a'), 'token-a');
+  const [exercise] = seedExercises();
+  const workout = { ...newWorkout(), notes: 'real notes' };
+  const keep = snapshot(exercise, workout.id, 0); const drop = snapshot(exercise, workout.id, 1);
+  await phone.store.save([workout]);
+  await phone.store.save([keep, setOf(workout, keep.id, 0, 100, 5)]);
+  await phone.store.save([drop, setOf(workout, drop.id, 0, 90, 5), setOf(workout, drop.id, 1, 95, 5)]);
+  online = true; await phone.engine.flush();
+  await pullWorkouts(laptop.api, laptop.store);
+
+  // Remove one entry, then (offline) delete the whole workout.
+  const records = () => phone.store.records().then(rows => rows.map(r => r.value));
+  for (const b of entryRemoval(await records(), workout, drop)) await phone.store.save(b.values, b.removed);
+  await phone.engine.flush();
+  assert.equal([...cloud.db.items.keys()].filter(k => k.includes(drop.id)).length, 0);
+  assert.equal([...cloud.db.items.values()].filter(i => i.value?.entryId === drop.id).length, 0);
+
+  // The laptop queues a stale edit before learning of the deletion.
+  await laptop.store.save([{ ...workout, notes: 'laptop edit' }]);
+
+  online = false;
+  const current = (await records()).find(r => r.kind === 'workout')!;
+  for (const b of workoutDeletion(await records(), current as typeof workout)) await phone.store.save(b.values, b.removed);
+  await phone.engine.flush();
+  assert.equal(states.at(-1), 'local');
+  assert.equal((await records()).filter(r => r.kind !== 'workout').length, 0, 'deleted locally while offline');
+  online = true; await phone.engine.flush();
+  assert.equal(states.at(-1), 'synced');
+  const cloudRows = [...cloud.db.items.values()].filter(i => String(i.sk).startsWith(`WORKOUT#${workout.id}#`));
+  assert.deepEqual(cloudRows.map(i => [i.value.status, i.value.notes, i.value.stretched]), [['deleted', '', false]]);
+
+  // The stale laptop edit becomes a conflict; keeping it cannot restore the workout, and the online copy wins.
+  await laptop.engine.flush();
+  assert.equal(laptop.states.at(-1), 'conflict');
+  await laptop.store.resolve(recordKey(workout), await fetchAggregate(laptop.api, recordKey(workout)), 'local');
+  await laptop.engine.flush();
+  assert.equal(laptop.states.at(-1), 'failed');
+  assert.equal([...cloud.db.items.values()].find(i => i.sk === recordKey(workout))?.value.status, 'deleted');
+  await laptop.store.resolve(recordKey(workout), await fetchAggregate(laptop.api, recordKey(workout)), 'server');
+  await laptop.engine.flush();
+  assert.equal(laptop.states.at(-1), 'synced');
+  const laptopRows = (await laptop.store.records()).map(r => r.value);
+  assert.deepEqual(laptopRows.map(r => r.kind === 'workout' ? r.status : r.kind), ['deleted']);
+
+  // A third device that never saw the workout learns only of the tombstone.
+  const tablet = await device('synthetic-a', cloud.request('token-a'), 'token-a');
+  await pullWorkouts(tablet.api, tablet.store);
+  assert.deepEqual((await tablet.store.records()).map(r => r.value.kind === 'workout' ? r.value.status : r.value.kind), ['deleted']);
+});

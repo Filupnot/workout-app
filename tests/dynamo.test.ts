@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DynamoRepository } from '../backend/dynamo';
-import { defaultProfile, newWorkout, recordKey, seedExercises, type WorkoutRecord } from '../src/lib/domain/model';
+import { defaultProfile, newWorkout, recordKey, seedExercises, snapshot, type WorkoutRecord } from '../src/lib/domain/model';
 import { fakeDynamo } from './fake-dynamo';
 
 const create = (value: WorkoutRecord, baseRevision = 0, extra: WorkoutRecord[] = []) => ({ id: crypto.randomUUID(), aggregate: recordKey(value),
@@ -86,4 +86,42 @@ test('workout detail pages through children and exposes no mutation markers', as
   assert.equal(rows.length, 1 + 3 + 54);
   assert.ok(rows.every(r => r.key.startsWith(`WORKOUT#${workout.id}#`)));
   assert.equal(rows.find(r => r.key === recordKey(workout))?.revision, revision);
+});
+
+test('entries are removable only with all their sets, and deleted workouts accept only removals', async () => {
+  const { validateMutation } = await import('../backend/repository');
+  const db = fakeDynamo(); const repo = new DynamoRepository(db.client, 'synthetic-table');
+  const workout = newWorkout(); const [exercise] = seedExercises();
+  const entry = snapshot(exercise, workout.id, 0);
+  const setOf = (i: number) => ({ schemaVersion: 1 as const, kind: 'set' as const, id: crypto.randomUUID(), workoutId: workout.id, entryId: entry.id,
+    position: i, weight: 100, unit: 'lb' as const, reps: 5, completedAt: new Date().toISOString() });
+  const sets = [setOf(0), setOf(1), setOf(2)];
+  let revision = (await repo.mutate('a', create(workout))).revision;
+  revision = (await repo.mutate('a', create(workout, revision, [entry, ...sets]))).revision;
+  const removal = (keys: string[], puts: WorkoutRecord[] = [], parent: WorkoutRecord = workout) => validateMutation({ id: crypto.randomUUID(),
+    aggregate: recordKey(workout), baseRevision: revision, createdAt: new Date().toISOString(),
+    changes: [{ key: recordKey(parent), value: parent }, ...puts.map(v => ({ key: recordKey(v), value: v })), ...keys.map(key => ({ key, value: null }))] });
+
+  await assert.rejects(repo.mutate('a', removal([recordKey(entry)])), /Remove the sets/);
+  await assert.rejects(repo.mutate('a', removal([recordKey(entry), recordKey(sets[0]), recordKey(sets[1])])), /Remove the sets/);
+  await assert.rejects(repo.mutate('a', removal([recordKey(entry), recordKey(sets[0]), recordKey(sets[1]), recordKey(sets[2])], [setOf(3)])), /Remove the sets|strength entry/);
+  revision = (await repo.mutate('a', removal([recordKey(sets[0])]))).revision;
+  revision = (await repo.mutate('a', removal([recordKey(entry), recordKey(sets[1]), recordKey(sets[2])]))).revision;
+  assert.equal([...db.items.keys()].filter(k => k.includes(`WORKOUT#${workout.id}#`) && !k.endsWith('#META')).length, 0);
+
+  // A tombstoned workout accepts further removals but no new content.
+  const second = snapshot(exercise, workout.id, 1); const extra = { ...setOf(0), entryId: second.id };
+  revision = (await repo.mutate('a', create(workout, revision, [second, extra]))).revision;
+  const { endedAt: _e, ...rest } = workout;
+  const tombstone = { ...rest, status: 'deleted' as const, notes: '', stretched: false };
+  revision = (await repo.mutate('a', removal([recordKey(extra)], [], tombstone))).revision;
+  await assert.rejects(repo.mutate('a', removal([], [setOf(9)], tombstone)), /deleted/);
+  await assert.rejects(repo.mutate('a', removal([], [{ ...second, notes: 'late edit' }], tombstone)), /deleted/);
+  revision = (await repo.mutate('a', removal([recordKey(second)], [], tombstone))).revision;
+  const left = [...db.items.values()].filter(i => String(i.sk).startsWith(`WORKOUT#${workout.id}#`));
+  assert.deepEqual(left.map(i => [i.sk, i.value.status, i.value.notes]), [[recordKey(workout), 'deleted', '']]);
+  // The workout record itself can never be deleted, and nothing scans.
+  assert.throws(() => validateMutation({ id: crypto.randomUUID(), aggregate: recordKey(workout), baseRevision: revision, createdAt: new Date().toISOString(),
+    changes: [{ key: recordKey(workout), value: null }] }), /deletion/);
+  assert.equal(db.commands.includes('ScanCommand'), false);
 });

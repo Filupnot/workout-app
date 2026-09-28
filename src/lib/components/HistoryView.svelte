@@ -19,19 +19,14 @@
   const round = (n: number) => Math.round(n * 10) / 10;
 </script>
 
-<div class="page-heading"><div><p class="eyebrow">The work adds up</p><h1>History<span class="accent">.</span></h1></div></div>
-
-<p class="coverage" role="status">
-  {#if !covered.count}No finished workouts on this device yet.
-  {:else}{covered.count} finished workout{covered.count === 1 ? '' : 's'} since {shortDate(covered.since!)}.
-    {covered.complete ? 'That is all of your history.' : 'Older workouts are not loaded yet, so trends are partial.'}{/if}
-</p>
+<h1>History<span class="accent">.</span></h1>
 
 {#if !covered.count}
-  <section class="card empty"><h2>Progress starts with showing up.</h2><p>Your first finished workout will appear here.</p></section>
+  <p class="subtle">No finished workouts yet.</p>
 {:else}
+  {#if !covered.complete}<p class="coverage" role="status">Partial history: since {shortDate(covered.since!)}</p>{/if}
   <section class="card">
-    <div class="card-heading"><h2>Consistency</h2><span class="category">{recentCount(app.records, 30, new Date(app.now))} in 30 days</span></div>
+    <div class="card-heading"><h2>Consistency</h2><span class="category">{covered.count} total · {recentCount(app.records, 30, new Date(app.now))} in 30 days</span></div>
     <WeekBars {weeks} />
   </section>
 
@@ -49,12 +44,12 @@
         </label>
       </div>
       {#if best.length}
-        <p class="metric-label">Heaviest completed set of exactly {reps} reps</p>
+        <p class="metric-label">Best weight at {reps} reps</p>
         <Sparkline values={best.map(p => p.best!)} label={`${cohort.name} best weight at ${reps} reps over ${best.length} sessions`} />
       {:else}
-        <p class="subtle">No completed sets of exactly {reps} reps for this exercise yet.</p>
+        <p class="subtle">No sets at {reps} reps</p>
       {/if}
-      <p class="metric-label">Volume per session (weight × reps, all sets)</p>
+      <p class="metric-label">Volume</p>
       <Sparkline values={cohort.points.map(p => p.volume)} label={`${cohort.name} volume over ${cohort.points.length} sessions`} />
       <table class="data">
         <thead><tr><th>Date</th><th>Best @ {reps}</th><th>Volume</th></tr></thead>
@@ -65,8 +60,8 @@
 
   {#each rows as r (r.meters)}
     <section class="card trend">
-      <div class="card-heading"><h2>Rowing · {r.meters.toLocaleString()} m</h2><span class="category">pace</span></div>
-      <p class="metric-label">Average time per 500 m (lower is faster)</p>
+      <h2>Rowing · {r.meters.toLocaleString()} m</h2>
+      <p class="metric-label">Split /500 m</p>
       <Sparkline values={r.points.map(p => -p.split)} label={`Rowing ${r.meters} meter pace over ${r.points.length} sessions`} />
       <table class="data">
         <thead><tr><th>Date</th><th>Time</th><th>Split</th></tr></thead>
@@ -75,7 +70,7 @@
     </section>
   {/each}
 
-  <p class="eyebrow">Sessions</p>
+  <h2>Sessions</h2>
   <ul class="sessions">
     {#each app.finished as w (w.id)}
       <li>
@@ -89,15 +84,16 @@
               <div class="detail-entry">
                 {#if e.kind === 'strength'}
                   <h3>{e.exerciseName}{e.details.angle !== undefined ? ` · ${e.details.angle}°` : ''}</h3>
-                  {#each sets(app.records, e.id) as s, i (s.id)}<p>Set {i + 1}: <strong>{s.weight} {s.unit} × {s.reps}</strong></p>{:else}<p class="subtle">No sets logged.</p>{/each}
+                  {#each sets(app.records, e.id) as s, i (s.id)}<p>Set {i + 1}: <strong>{s.weight} {s.unit} × {s.reps}</strong></p>{:else}<p class="subtle">No sets</p>{/each}
                 {:else}
                   <h3>Rowing</h3><p><strong>{Math.round(e.meters)} m</strong> in {formatTime(e.seconds)} · {formatTime(500 * e.seconds / e.meters)} /500 m</p>
                 {/if}
                 {#if e.notes}<p class="note">{e.notes}</p>{/if}
               </div>
             {/each}
-            <p>{w.stretched ? 'Stretched afterwards.' : 'No stretch logged.'}</p>
+            {#if w.stretched}<p>Stretched</p>{/if}
             {#if w.notes}<p class="note">{w.notes}</p>{/if}
+            <button class="text-button danger" onclick={() => { if (confirm(`Delete the workout from ${exactDate(w)}? This can't be undone.`)) void app.deleteWorkout(w); }} disabled={app.busy}>Delete workout</button>
           </div>
         {/if}
       </li>

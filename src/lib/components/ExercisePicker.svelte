@@ -18,7 +18,7 @@
 
 <section class="card picker" aria-labelledby="picker-title">
   <div class="card-heading">
-    <h2 id="picker-title">{app.currentEntries.length ? 'What did you just do?' : 'Pick your first exercise'}</h2>
+    <h2 id="picker-title">Choose exercise</h2>
     {#if app.activeEntry}<button class="text-button" onclick={() => (app.picker = false)}>Close</button>{/if}
   </div>
   <input class="search" type="search" placeholder="Search or add an exercise" aria-label="Search exercises" bind:value={query} autocomplete="off" />
@@ -30,10 +30,10 @@
   <ul class="options">
     {#each visible as e (e.id)}
       <li><button class="option" onclick={() => app.chooseExercise(e)} disabled={app.busy}>
-        <span>{e.name}<small>{e.category}{e.details.angle !== undefined ? ` · ${e.details.angle}°` : ''}{e.lastUsedAt ? ' · recent' : ''}</small></span><span aria-hidden="true">+</span>
+        <span>{e.name}<small>{e.category}{e.details.angle !== undefined ? ` · ${e.details.angle}°` : ''}</small></span><span aria-hidden="true">+</span>
       </button></li>
     {:else}
-      <li class="subtle">No saved exercises match.</li>
+      <li class="subtle">No matches</li>
     {/each}
   </ul>
   {#if query.trim() && !exact}

@@ -21,6 +21,10 @@ A conflict or rejection blocks only the record it affects; everything else keeps
 - **Use the online version:** your queued edits to that record are discarded and the online copy replaces the local one.
 - **Decide later:** both copies stay as they are, and the chip keeps offering the choice.
 
+## Deleting
+
+Removals sync like any other change: saved here first, then uploaded in order, including after going offline. Deleting a workout erases its exercises, sets, and notes from the cloud. The only thing left is a marker with the workout's ID and date, so your other devices remove their copy too. A device that edited the workout before hearing of the deletion shows **Review a conflict**. **Use the online version** accepts the deletion. **Keep this device's changes** is refused, because a deleted workout can't be restored, and shows **Sync needs attention** until you accept the deletion.
+
 ## Offline
 
 After you have signed in once on a device, the app opens and logs offline, including after a reload. First sign-in needs a connection. Local storage is not a backup: until the chip says **Synced**, a cleared browser or evicted storage can lose unsynced changes.

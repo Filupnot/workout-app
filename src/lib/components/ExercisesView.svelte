@@ -11,7 +11,7 @@
   async function submit() { await app.saveExercise({ id: editing, name, category, angle }); if (!app.error) reset(); }
 </script>
 
-<div class="page-heading"><div><p class="eyebrow">Your familiar moves</p><h1>Exercises<span class="accent">.</span></h1></div></div>
+<h1>Exercises<span class="accent">.</span></h1>
 
 <form class="card" onsubmit={e => { e.preventDefault(); void submit(); }} aria-labelledby="exercise-form-title">
   <h2 id="exercise-form-title">{editing ? 'Edit exercise' : 'Add an exercise'}</h2>
@@ -20,7 +20,6 @@
     <label>Category<select bind:value={category}><option value="push">Push</option><option value="pull">Pull</option><option value="legs">Legs</option></select></label>
     <label>Default angle<input inputmode="decimal" bind:value={angle} placeholder="Optional" /></label>
   </div>
-  {#if editing}<p class="subtle">Past workouts keep the name and angle they were logged with.</p>{/if}
   <button class="primary full" disabled={app.busy}>{editing ? 'Save changes' : 'Add exercise'}</button>
   {#if editing}<button type="button" class="text-button full" onclick={reset}>Cancel</button>{/if}
 </form>
@@ -30,11 +29,11 @@
     <p class="eyebrow">{c}</p>
     {#each active.filter(e => e.category === c) as e (e.id)}
       <div class="library-item">
-        <button class="library-name" onclick={() => edit(e)}>{e.name}<small>{e.details.angle !== undefined ? `${e.details.angle}° · ` : ''}Edit</small></button>
+        <button class="library-name" onclick={() => edit(e)}>{e.name}{#if e.details.angle !== undefined}<small>{e.details.angle}°</small>{/if}</button>
         <button class="text-button" aria-label={`Archive ${e.name}`} onclick={() => app.setArchived(e, true)}>Archive</button>
       </div>
     {:else}
-      <p class="subtle">Nothing here yet.</p>
+      <p class="subtle">None</p>
     {/each}
   </section>
 {/each}
